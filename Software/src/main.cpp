@@ -4,29 +4,38 @@
 #include "Bounce.h"
 
 volatile int value = 122;
-Bounce boSwitchOnOff(0, 50);
-bool bLightOn;
+
+//avr pin to arduino port mapping can be found on: /home/ctack/sketchbook/hardware/tiny/cores/tiny/pins_arduino.c
+byte pinSwitchOnOff=0;
+byte pinEnc1=1;
+byte pinSenseOnOff=2;
+byte pinEnc2=3;
+byte pinPwmOut=4;
+Bounce boSwitchOnOff(pinSenseOnOff, 200);
 
 void setup()
 {
-    // Initialize Arduino Librairies
+    // Initialize Arduino Libraries
     init();
-    pinMode(1, OUTPUT);
-    pinMode(0, INPUT_PULLUP);
-    pinMode(3, INPUT_PULLUP);
-    pinMode(4, INPUT_PULLUP);
-    bitSet(PCMSK, 3);
-    bitSet(PCMSK, 4);
+    pinMode(pinSwitchOnOff, OUTPUT);
+    pinMode(pinEnc1, INPUT_PULLUP);
+    pinMode(pinSenseOnOff, INPUT_PULLUP);
+    pinMode(pinEnc2, INPUT_PULLUP);
+    pinMode(pinPwmOut, OUTPUT);
+    digitalWrite(pinPwmOut, LOW);
+    bitSet(PCMSK, pinEnc1);
+    bitSet(PCMSK, pinEnc2);
+    bitSet(GIMSK, PCIE);
+    digitalWrite(pinSwitchOnOff, HIGH);
     sei();                    // Turn on interrupts
 }
 
 void loop(){
     boSwitchOnOff.update();
     if(boSwitchOnOff.fallingEdge()){
-        bLightOn=(bLightOn?false:true);
-        bitWrite(GIMSK, PCIE, bLightOn);
+       digitalWrite(pinSwitchOnOff, LOW);
     }
-    analogWrite(1, bLightOn?value:255);
+    analogWrite(pinPwmOut, value);
 }
 
 // This is the ISR that is called on each interrupt
@@ -35,8 +44,8 @@ void loop(){
 ISR(PCINT0_vect)
 {
     static byte lastEncoded = 0;
-    byte MSB = digitalRead(3); //MSB = most significant bit
-    byte LSB = digitalRead(4); //LSB = least significant bit
+    byte MSB = digitalRead(pinEnc1); //MSB = most significant bit
+    byte LSB = digitalRead(pinEnc2); //LSB = least significant bit
 
     int encoded = (MSB << 1) | LSB; //converting the 2 pin value to single number
     byte sum  = (lastEncoded << 2) | encoded; //adding it to the previous encoded value
