@@ -12,6 +12,8 @@ byte pinSenseOnOff=2;
 byte pinEnc2=3;
 byte pinPwmOut=4;
 Bounce boSwitchOnOff(pinSenseOnOff, 200);
+typedef enum{TURNING_ON, RUNNING, TURNING_OFF}LightState;
+LightState ls;
 
 void setup()
 {
@@ -27,15 +29,33 @@ void setup()
     bitSet(PCMSK, pinEnc2);
     bitSet(GIMSK, PCIE);
     digitalWrite(pinSwitchOnOff, HIGH);
+    ls=TURNING_ON;
     sei();                    // Turn on interrupts
 }
 
 void loop(){
     boSwitchOnOff.update();
-    if(boSwitchOnOff.fallingEdge()){
-       digitalWrite(pinSwitchOnOff, LOW);
+    switch(ls){
+    case TURNING_ON:
+        if(boSwitchOnOff.risingEdge()){
+            //User released button after startup
+            ls=RUNNING;
+        }
+        break;
+    case RUNNING:
+        if(boSwitchOnOff.fallingEdge()){
+            //User started to push button to turn the lamp off
+            ls=TURNING_OFF;
+        }
+        analogWrite(pinPwmOut, value);
+        break;
+    case TURNING_OFF:
+        if(boSwitchOnOff.risingEdge()){
+            //User released button to turn the lamp off
+            digitalWrite(pinSwitchOnOff, LOW);
+        }
+        break;
     }
-    analogWrite(pinPwmOut, value);
 }
 
 // This is the ISR that is called on each interrupt
